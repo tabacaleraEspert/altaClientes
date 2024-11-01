@@ -6,7 +6,7 @@ import './App.css';
 function App() {
   return (
     <Router>
-      <div className="App">
+      <div className="App" style={{ backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
         <Routes>
           <Route path="/" element={<FormPage />} />
         </Routes>

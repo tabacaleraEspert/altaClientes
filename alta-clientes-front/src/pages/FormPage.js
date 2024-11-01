@@ -1,15 +1,23 @@
 // src/pages/FormPage.js
-import React from 'react';
+// Azure solution is a commented block down this page.
 import { useForm } from 'react-hook-form';
 import { Accordion, Dropdown, Form, Button, Container, Row, Col, Card } from 'react-bootstrap';
+import axios from 'axios';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import React, { useState, onSubmit, formRef } from 'react';
+import emailjs from 'emailjs-com';
+
 
 
 
 
 function FormPage() {
-    const { register, handleSubmit, formState: { errors } } = useForm();
+    const { register, handleSubmit,formState: { errors } } = useForm();
     const [otrosContactos, setOtrosContactos] = React.useState([]);
     const [direccionesAdicionales, setDireccionesAdicionales] = React.useState([]);
+    const [pdfFile1, setPdfFile1] = useState(null);
+    const [pdfFile2, setPdfFile2] = useState(null);
 
 
     const agregarOtroContacto = () => {
@@ -26,26 +34,116 @@ function FormPage() {
         setDireccionesAdicionales(direccionesAdicionales.filter((_, i) => i !== index));
     };
 
+    
+    const backendUrl = 'https://altaclientemailsender.azurewebsites.net/api/send_mail?code=4UiphmB-qKKG_2CiTkrcrAJ52NneMVoCVaNbVJG3HQXoAzFuEJbp_w==';
+
+    
+    const onSubmit = async (data) => {
+        if (Object.keys(errors).length === 0) {
+            try {
+            // Create FormData object and populate it with all form data
+            const formData = new FormData();
+        
+            // Automatically append all form fields, including files
+            Object.keys(data).forEach((key) => {
+                const value = data[key];
+                if (value instanceof FileList) {
+                // For file input fields, add each file separately
+                Array.from(value).forEach((file) => {
+                    formData.append(key, file);
+                });
+                } else {
+                // For other fields, add them directly
+                formData.append(key, value);
+                }
+            });
+        
+            // Send POST request with FormData
+            const response = await axios.post('http://localhost:5001/send-email', formData, {
+                headers: {
+                'Content-Type': 'multipart/form-data',
+                },
+            });
+            console.log(response.data);  // Handle response as needed
+            alert("Form submitted successfully!");
+            } catch (error) {
+            console.error("Error submitting form:", error);
+            alert("There was an error submitting the form.");
+            }
+        } else {
+            alert("Please fix the errors before submitting.");
+        }
+        };
+  
 
 
-    const onSubmit = (data) => {
-        console.log(data);
-        alert('Formulario enviado correctamente');
+    // const onSubmit = (data) => {
+        
+    //     // Create a FormData object to include the form fields and files
+    //     const formDataToSend = new FormData();
+    
+    //     // Append text fields
+    //     formDataToSend.append('to_name', 'data.nombreApellido');
+    //     formDataToSend.append('cc_email', 'davor.vindis99@gmail.com'); // Example CC email
+    //     formDataToSend.append('data', 'abc'); // Example data
+    
+    //     // Append files
+    //     if (pdfFile1) formDataToSend.append('pdfFile1', pdfFile1);
+    //     if (pdfFile2) formDataToSend.append('pdfFile2', pdfFile2);
+    //     // Send data with EmailJS
+    //     emailjs.sendForm('service_q8md7l3', 'template_p5ffffn', formDataToSend, 'AW8tL9IBmurnR2gj0')
+    //       .then((result) => {
+    //         console.log('Email sent successfully:', result.text);
+    //         alert('Form submitted and email sent successfully!');
+    //       })
+    //       .catch((error) => {
+    //         console.error('Error sending email:', error.text);
+    //         alert('There was an error submitting the form.');
+    //       });
+    //   };
+
+
+
+
+    const generatePDF = (data) => {
+        const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height; // Get the page height
+        let y = 20; // Start position for text
+
+        doc.setFontSize(16);
+        doc.text("Form Submission", 20, y);
+        y += 10;
+
+        doc.setFontSize(12);
+        Object.keys(data).forEach((key) => {
+            const value = Array.isArray(data[key]) ? data[key].join(", ") : data[key];
+
+            // Check if adding the next line will exceed page height
+            if (y + 10 > pageHeight) {
+                doc.addPage(); // Add new page
+                y = 20; // Reset y position for the new page
+            }
+
+            doc.text(`${key}: ${value}`, 20, y);
+            y += 10; // Move y position down for the next line
+        });
+
+        doc.save("form-submission.pdf");
     };
 
     return (
         <Container>
             <h2 className="my-4">Formulario de Alta Cliente</h2>
-            <Form onSubmit={handleSubmit(onSubmit)}>
+            <Form onSubmit={handleSubmit(onSubmit)} id='form-to-pdf'>
 
-                <Accordion defaultActiveKey="0" className="mb-4">
+                {/* <Accordion defaultActiveKey="0" className="mb-4">
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>1. Datos del Territory Manage o Vendedor</Accordion.Header>
                         <Accordion.Body>
-                            {/* Section 1: Datos del Territory Manager */}
+                            Section 1: Datos del Territory Manager
                             <Card className="mb-4">
                                 <Card.Body>
-                                    {/* <Card.Title>1. Datos del Territory Manager</Card.Title> */}
+                                    <Card.Title>1. Datos del Territory Manager</Card.Title>
                                     <Row className="mb-3">
                                         <Col md={6}>
                                             <Form.Group controlId="nombreApellido">
@@ -74,16 +172,15 @@ function FormPage() {
                         </Accordion.Body>
                     </Accordion.Item>
                 </Accordion>
-
-
+                
                 <Accordion defaultActiveKey="0" className="mb-4">
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>2. Informacion general del cliente</Accordion.Header>
                         <Accordion.Body>
-                            {/* Section 2: Información General */}
+                            Section 2: Información General
                             <Card className="mb-4">
                                 <Card.Body>
-                                    {/* <Card.Title>2. Información General</Card.Title> */}
+                                    <Card.Title>2. Información General</Card.Title>
                                     <Row className="mb-3">
                                         <Col md={6}>
                                             <Form.Group controlId="nombreRazonSocial">
@@ -111,7 +208,7 @@ function FormPage() {
                             </Card>
 
 
-                            {/* Dirección Fiscal */}
+                            {/* Dirección Fiscal }
                             <Card className="mb-4">
                                 <Card.Body>
                                     <Card.Title>Dirección Fiscal</Card.Title>
@@ -170,18 +267,16 @@ function FormPage() {
                     </Accordion.Item>
                 </Accordion>
 
-
-
                 <Accordion defaultActiveKey="0" className="mb-4">
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>3. Contactos</Accordion.Header>
                         <Accordion.Body>
-                            {/* Contactos */}
+                            Contactos
                             <Card className="mb-4">
                                 <Card.Body>
                                     <Card.Title>Contactos</Card.Title>
 
-                                    {/* Contacto Comercial */}
+                                    Contacto Comercial
                                     <h5>1 Contacto Comercial</h5>
                                     <Row className="mb-3">
                                         <Col md={6}>
@@ -214,7 +309,7 @@ function FormPage() {
                                         </Col>
                                     </Row>
 
-                                    {/* Contacto Administrativo */}
+                                    Contacto Administrativo
                                     <h5>2 Contacto Administrativo</h5>
                                     <Row className="mb-3">
                                         <Col md={6}>
@@ -247,7 +342,7 @@ function FormPage() {
                                         </Col>
                                     </Row>
 
-                                    {/* Contacto Contable e Impositivo */}
+                                    Contacto Contable e Impositivo
                                     <h5>3 Contacto Contable e Impositivo</h5>
                                     <Row className="mb-3">
                                         <Col md={6}>
@@ -280,7 +375,7 @@ function FormPage() {
                                         </Col>
                                     </Row>
 
-                                    {/* Otros Contactos */}
+                                    Otros Contactos
                                     <h5>4 Otros Contactos</h5>
                                     {otrosContactos.map((contacto, index) => (
                                         <Card key={index} className="mb-3">
@@ -328,11 +423,11 @@ function FormPage() {
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>4.  Información Logística</Accordion.Header>
                         <Accordion.Body>
-                            {/* Nueva Sección: Información Logística */}
+                            {/* Nueva Sección: Información Logística}
                             <Card className="mb-4">
                                 <Card.Body>
-                                    {/* <Card.Title>4. Información Logística</Card.Title> */}
-                                    {/* Dirección de Entrega Principal */}
+                                    {/* <Card.Title>4. Información Logística</Card.Title> }
+                                    {/* Dirección de Entrega Principal }
                                     <h5> Dirección de Entrega Principal</h5>
                                     <Row className="mb-3">
                                         <Col md={6}>
@@ -428,8 +523,8 @@ function FormPage() {
                                     </Row>
                                     <Dropdown.Divider />
 
-                                    {/* Dirección de Entrega Adicionales */}
-                                    {/* Dirección de Entrega Adicionales */}
+                                    {/* Dirección de Entrega Adicionales }
+                                    {/* Dirección de Entrega Adicionales }
                                     <h5>Dirección de Entrega Adicional</h5>
                                     {direccionesAdicionales.map((direccion, index) => (
                                         <Card key={index} className="mb-3">
@@ -521,7 +616,7 @@ function FormPage() {
                                                     </Col>
                                                 </Row>
 
-                                                {/* Botón para eliminar esta dirección adicional */}
+                                                {/* Botón para eliminar esta dirección adicional }
                                                 <Button variant="danger" onClick={() => eliminarDireccionAdicional(index)} className="mt-2">
                                                     Borrar dirección
                                                 </Button>
@@ -540,12 +635,12 @@ function FormPage() {
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>5. Informacion de pagos</Accordion.Header>
                         <Accordion.Body>
-                            {/* Informacion de Pagos */}
+                            {/* Informacion de Pagos }
                             <Card className="mb-4">
                                 <Card.Body>
                                     <Card.Title>Información de Pagos</Card.Title>
 
-                                    {/* Plazo de Pago */}
+                                    {/* Plazo de Pago }
                                     <h5>Plazo de Pago</h5>
                                     <Form.Group>
                                         {['30 DÍAS FECHA DE FACTURA', '21 DÍAS FECHA DE FACTURA', '15 DÍAS FECHA DE FACTURA', '10 DÍAS FECHA DE FACTURA', '7 DÍAS FECHA DE FACTURA', 'CONTADO CUENTA CORRIENTE'].map((option, index) => (
@@ -562,7 +657,7 @@ function FormPage() {
                                         {errors.plazoPago && <p className="text-danger">Este campo es requerido</p>}
                                     </Form.Group>
 
-                                    {/* Medio de Pago */}
+                                    {/* Medio de Pago }
                                     <h5>Medio de Pago</h5>
                                     <Form.Group>
                                         {['CONTADO – EFECTIVO', 'TRANSFERENCIA BANCARIA'].map((option, index) => (
@@ -577,7 +672,7 @@ function FormPage() {
                                         ))}
                                     </Form.Group>
 
-                                    {/* Días de Entrega Acordados */}
+                                    {/* Días de Entrega Acordados }
                                     <h5>Días de Entrega Acordados</h5>
                                     <Form.Group controlId="diasEntrega">
                                         <Form.Control
@@ -588,7 +683,7 @@ function FormPage() {
                                         {errors.diasEntrega && <p className="text-danger">Este campo es requerido</p>}
                                     </Form.Group>
 
-                                    {/* Tipo de Cliente */}
+                                    {/* Tipo de Cliente }
                                     <h5>Tipo de Cliente</h5>
                                     <Form.Group>
                                         {[
@@ -620,13 +715,13 @@ function FormPage() {
                     <Accordion.Item eventKey="0">
                         <Accordion.Header>6. Informacion fiscal</Accordion.Header>
                         <Accordion.Body>
-                            {/* Nueva Sección: Información Fiscal */}
+                            Nueva Sección: Información Fiscal
                             <Card className="mb-4">
                                 <Card.Body>
                                     <Card.Title>5. Información Fiscal</Card.Title>
 
-                                    {/* 5.1 Impuesto al Valor Agregado (IVA) */}
-                                    <h5>5.1 Impuesto al Valor Agregado (IVA)</h5>
+                                    5.1 Impuesto al Valor Agregado (IVA)
+                                    <h5>6.1 Impuesto al Valor Agregado (IVA)</h5>
                                     <Form.Group>
                                         {['RESPONSABLE INSCRIPTO', 'SUJETO EXENTO', 'MONOTRIBUTISTA', 'SUJETO DEL EXTERIOR'].map((option, index) => (
                                             <Form.Check
@@ -634,8 +729,7 @@ function FormPage() {
                                                 type="radio"
                                                 label={option}
                                                 value={option}
-                                                {...register('impuestoIVA', { required: true })}
-                                                name="impuestoIVA"
+                                                {...register('impuestoIVA', { required: true })} // Make sure to register with the correct name
                                                 className="mb-2"
                                             />
                                         ))}
@@ -647,8 +741,8 @@ function FormPage() {
                                         {errors.constanciaCuit && <p className="text-danger">Este campo es requerido</p>}
                                     </Form.Group>
 
-                                    {/* 5.2 Impuesto a los Ingresos Brutos */}
-                                    <h5>5.2 Impuesto a los Ingresos Brutos</h5>
+                                    5.2 Impuesto a los Ingresos Brutos
+                                    <h5>6.2 Impuesto a los Ingresos Brutos</h5>
                                     <Form.Group>
                                         {['SI', 'NO'].map((option, index) => (
                                             <Form.Check
@@ -664,8 +758,8 @@ function FormPage() {
                                         {errors.impuestoIngresosBrutos && <p className="text-danger">Este campo es requerido</p>}
                                     </Form.Group>
 
-                                    {/* 5.3 Contribuyente de Convenio Multilateral */}
-                                    <h5>5.3 Contribuyente de Convenio Multilateral</h5>
+                                    5.3 Contribuyente de Convenio Multilateral
+                                    <h5>6.3 Contribuyente de Convenio Multilateral</h5>
                                     <Form.Group>
                                         {['SI', 'NO'].map((option, index) => (
                                             <Form.Check
@@ -681,8 +775,8 @@ function FormPage() {
                                         {errors.convenioMultilateral && <p className="text-danger">Este campo es requerido</p>}
                                     </Form.Group>
 
-                                    {/* 5.4 Situación frente a los Regímenes de Retención/Percepción del Impuesto sobre los Ingresos Brutos */}
-                                    <h5>5.4 Situación frente a los Regímenes de Retención/Percepción del Impuesto sobre los Ingresos Brutos</h5>
+                                    5.4 Situación frente a los Regímenes de Retención/Percepción del Impuesto sobre los Ingresos Brutos
+                                    <h5>6.4 Situación frente a los Regímenes de Retención/Percepción del Impuesto sobre los Ingresos Brutos</h5>
 
                                     <Form.Group className="mb-2">
                                         <Form.Label>Posee algún certificado de no retención del impuesto sobre los ingresos brutos otorgado por alguna jurisdicción:</Form.Label>
@@ -734,9 +828,23 @@ function FormPage() {
                         </Accordion.Body>
                     </Accordion.Item>
                 </Accordion>
+ */}
+                <Form.Group controlId="nombreRazonSocial">
+                                                <Form.Label>Nombre y Apellido (Razón Social)</Form.Label>
+                                                <Form.Control type="text" placeholder="Razón Social" {...register('nombreRazonSocial', { required: true })} />
+                                                {errors.nombreRazonSocial && <p className="text-danger">Este campo es requerido</p>}
+                                            </Form.Group>
 
-
-
+                        <Form.Group controlId="constanciaCuit" className="mb-3">
+                            <Form.Label>Adjuntar copia de la constancia de inscripción de CUIT (PDF)</Form.Label>
+                            <Form.Control type="file" accept=".pdf" {...register('constanciaCuit', { required: true })} />
+                            {errors.constanciaCuit && <p className="text-danger">Este campo es requerido</p>}
+                        </Form.Group>
+                        <Form.Group controlId="mail">
+                                                <Form.Label>Mail</Form.Label>
+                                                <Form.Control type="text" placeholder="Mail" {...register('mail', { required: true })} />
+                                                {errors.nombreRazonSocial && <p className="text-danger">Este campo es requerido</p>}
+                                            </Form.Group>
 
                 <Button variant="primary" type="submit">
                     Enviar
@@ -747,3 +855,50 @@ function FormPage() {
 }
 
 export default FormPage;
+
+
+
+
+  
+    // * Azure solution *
+    // const functionKey = "ioPmDzZow-4kDxH5QBd1pImyx_5DMaLZV7KKtQwj3Xg2AzFuvDCZqg==";
+    // const backendUrl = 'https://altaclienteformulario.azurewebsites.net/api/http_trigger1?code=ioPmDzZow-4kDxH5QBd1pImyx_5DMaLZV7KKtQwj3Xg2AzFuvDCZqg==';
+
+    //OnSubmit with MultiPartData for POST to an API
+    // const onSubmit = async (data) => {
+    //     if (Object.keys(errors).length === 0) {
+    //       try {
+    //         // Create FormData object and populate it with all form data
+    //         const formData = new FormData();
+      
+    //         // Automatically append all form fields, including files
+    //         Object.keys(data).forEach((key) => {
+    //           const value = data[key];
+    //           if (value instanceof FileList) {
+    //             // For file input fields, add each file separately
+    //             Array.from(value).forEach((file) => {
+    //               formData.append(key, file);
+    //             });
+    //           } else {
+    //             // For other fields, add them directly
+    //             formData.append(key, value);
+    //           }
+    //         });
+      
+    //         // Send POST request with FormData
+    //         const response = await axios.post(backendUrl, formData, {
+    //           headers: {
+    //             'Content-Type': 'multipart/form-data',
+    //           },
+    //         });
+    //         console.log(response.data);  // Handle response as needed
+    //         alert("Form submitted successfully!");
+    //       } catch (error) {
+    //         console.error("Error submitting form:", error);
+    //         alert("There was an error submitting the form.");
+    //       }
+    //     } else {
+    //       alert("Please fix the errors before submitting.");
+    //     }
+    //   };
+  
