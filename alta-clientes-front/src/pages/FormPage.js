@@ -35,7 +35,7 @@ function FormPage() {
     };
 
     
-    const backendUrl = 'https://altaclientemailsender.azurewebsites.net/api/send_mail?code=4UiphmB-qKKG_2CiTkrcrAJ52NneMVoCVaNbVJG3HQXoAzFuEJbp_w==';
+
 
     
     const onSubmit = async (data) => {
